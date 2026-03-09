@@ -10,6 +10,27 @@ function getDirectionValue(stock: RFactorData["stocks"][number]) {
   return stock.inferred_direction ?? (stock.change_pct > 0 ? "LONG" : stock.change_pct < 0 ? "SHORT" : "NEUTRAL");
 }
 
+function getTierPenalty(stock: RFactorData["stocks"][number], sortBy: RFactorSortBy) {
+  const tier = stock.tier?.toLowerCase();
+  const opportunityScore = stock.opportunity_score ?? Number.NEGATIVE_INFINITY;
+  const triggerScore = getTriggerScoreValue(stock) ?? Number.NEGATIVE_INFINITY;
+  const hasExceptionalSetup = opportunityScore >= 8 || triggerScore >= 75;
+
+  if (hasExceptionalSetup) {
+    return 0;
+  }
+
+  if (tier === "very_weak") {
+    return sortBy === "trend" ? 0.15 : sortBy === "opportunity" || sortBy === "pre_score" ? 0.4 : 4;
+  }
+
+  if (tier === "weak") {
+    return sortBy === "trend" ? 0.08 : sortBy === "opportunity" || sortBy === "pre_score" ? 0.2 : 2;
+  }
+
+  return 0;
+}
+
 function getSortValue(stock: RFactorData["stocks"][number], sortBy: RFactorSortBy) {
   if (sortBy === "opportunity") return stock.opportunity_score ?? Number.NEGATIVE_INFINITY;
   if (sortBy === "trend") return stock.rfactor_trend_15m ?? Number.NEGATIVE_INFINITY;
@@ -76,7 +97,10 @@ export function RFactorTab() {
       .filter((s) => s.rfactor >= minScore)
       .filter((s) => direction === "ALL" || getDirectionValue(s) === direction)
       .sort((a, b) => {
-        return getSortValue(b, sortBy) - getSortValue(a, sortBy);
+        const adjustedA = getSortValue(a, sortBy) - getTierPenalty(a, sortBy);
+        const adjustedB = getSortValue(b, sortBy) - getTierPenalty(b, sortBy);
+
+        return adjustedB - adjustedA;
       });
   }, [data, foOnly, minScore, direction, sortBy]);
 

@@ -126,15 +126,15 @@ export function StageBadge({ stage, className }: StageBadgeProps) {
       label="Stage"
       description={
         stage === "WARMING"
-          ? "Warming = setup is beginning to organize"
+          ? "Warming = pre-score is building but trigger quality is still weak"
           : stage === "PRE_SIGNAL"
-            ? "Pre-signal = early pressure is building"
+            ? "Pre-signal = setup energy is improving but breakout is not confirmed yet"
             : stage === "BREAKING"
-              ? "Breaking = trigger conditions are activating"
+              ? "Breaking = fresh breakout or breakdown behavior is actively triggering"
               : stage === "CONFIRMED"
-                ? "Confirmed = move has follow-through and confirmation"
+                ? "Confirmed = breakout has follow-through and hold behavior"
                 : stage === "EXTENDED"
-                  ? "Extended = move is stretched and may be late"
+                  ? "Extended = chase-risk setup that is likely late or stretched"
                   : "Neutral = no clear early-entry edge"
       }
     >

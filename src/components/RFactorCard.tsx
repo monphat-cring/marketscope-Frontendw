@@ -115,6 +115,8 @@ export function RFactorCard({ stock }: RFactorCardProps) {
         borderRadius: "8px",
         borderLeft: `4px solid ${borderColor}`,
         boxShadow: chaseWarning ? "inset 0 0 0 1px rgba(249, 115, 22, 0.28)" : "none",
+        opacity: chaseWarning ? 0.88 : 1,
+        filter: chaseWarning ? "saturate(0.9)" : "none",
         padding: "14px",
         cursor: "pointer",
         transition: "background-color 0.15s ease",
@@ -356,7 +358,7 @@ export function RFactorCard({ stock }: RFactorCardProps) {
             >
               CHASE
             </span>
-            <span style={{ color: "#FCD9AE", fontSize: "11px", fontWeight: 600 }}>
+            <span style={{ color: "#CBD5E1", fontSize: "11px", fontWeight: 500 }}>
               {chaseReason ?? "Price is extended away from the ideal early-entry zone"}
             </span>
           </div>
