@@ -1,45 +1,42 @@
 import { useState, useMemo, useEffect } from "react";
 import { rfactorMockData, RFactorData } from "@/data/rfactorMockData";
 import { RFactorCard } from "./RFactorCard";
-import { apiUrl } from "@/lib/api";
+import { fetchRFactorData, type RFactorSortBy } from "@/lib/api";
 
 type Direction = "ALL" | "GAINERS" | "LOSERS";
-type SortBy = "rfactor" | "opportunity" | "trend";
 
-function getSortValue(stock: RFactorData["stocks"][number], sortBy: SortBy) {
+function getSortValue(stock: RFactorData["stocks"][number], sortBy: RFactorSortBy) {
   if (sortBy === "opportunity") return stock.opportunity_score ?? Number.NEGATIVE_INFINITY;
   if (sortBy === "trend") return stock.rfactor_trend_15m ?? Number.NEGATIVE_INFINITY;
   return stock.rfactor;
 }
 
 export function RFactorTab() {
-  const [sortBy, setSortBy] = useState<SortBy>("rfactor");
+  const [sortBy, setSortBy] = useState<RFactorSortBy>("rfactor");
   const [data, setData] = useState<RFactorData>(rfactorMockData);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
-    const endpoint =
-      sortBy === "opportunity"
-        ? "/rfactor?sort_by=opportunity"
-        : sortBy === "trend"
-          ? "/rfactor?sort_by=trend"
-          : "/rfactor?sort_by=rfactor";
+    const hasVisibleData = data.stocks.length > 0;
 
-    setLoading(true);
+    if (hasVisibleData) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
-    fetch(apiUrl(endpoint), { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.stocks) {
-          setData(d);
+    fetchRFactorData(sortBy, controller.signal)
+      .then((nextData) => {
+        if (nextData) {
+          setData(nextData);
           setError(false);
         } else {
           setData(rfactorMockData);
           setError(true);
         }
-        setLoading(false);
       })
       .catch((fetchError) => {
         if (fetchError instanceof DOMException && fetchError.name === "AbortError") {
@@ -47,8 +44,11 @@ export function RFactorTab() {
         }
 
         setData(rfactorMockData);
-        setLoading(false);
         setError(true);
+      })
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
       });
 
     return () => controller.abort();
@@ -81,6 +81,11 @@ export function RFactorTab() {
 
   return (
     <div style={{ backgroundColor: "#0d0d0d", minHeight: "100vh" }}>
+      {refreshing && !loading && (
+        <div className="flex items-center justify-center gap-2 py-2 text-blue-300 text-xs bg-[#101726] border-b border-blue-950">
+          Refreshing R-Factor data...
+        </div>
+      )}
       {error && (
         <div className="flex items-center justify-center gap-2 py-2 text-yellow-500 text-xs bg-[#1a1100] border-b border-yellow-900">
           ⚠️ Backend not reachable — showing mock data. Start server: <code>python main.py</code>
@@ -174,7 +179,7 @@ export function RFactorTab() {
           {/* Sort Dropdown */}
           <select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            onChange={(e) => setSortBy(e.target.value as RFactorSortBy)}
             style={{
               backgroundColor: "#1a1a1a",
               color: "#cccccc",
@@ -185,10 +190,11 @@ export function RFactorTab() {
               cursor: "pointer",
               outline: "none",
             }}
+            disabled={refreshing}
           >
-            <option value="rfactor">R-Factor ↓</option>
-            <option value="opportunity">Opportunity ↓</option>
-            <option value="trend">Trend ↓</option>
+            <option value="rfactor">R-Factor</option>
+            <option value="opportunity">Opportunity</option>
+            <option value="trend">Trend 15m</option>
           </select>
 
           {/* Updated time — pushed to the right */}

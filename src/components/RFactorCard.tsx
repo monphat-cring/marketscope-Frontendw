@@ -40,6 +40,11 @@ export function RFactorCard({ stock }: RFactorCardProps) {
   const borderColor = getBorderColor(stock.rfactor);
   const isPositive = stock.change_pct >= 0;
   const progressWidth = `${Math.max(0, Math.min(stock.rfactor <= 5 ? (stock.rfactor / 5) * 100 : stock.rfactor, 100))}%`;
+  const trendLabel =
+    stock.rfactor_trend_15m === undefined
+      ? "Trend --"
+      : `Trend ${stock.rfactor_trend_15m > 0 ? "+" : ""}${stock.rfactor_trend_15m.toFixed(2)}`;
+  const opportunityLabel = `Opportunity ${formatInsightNumber(stock.opportunity_score, 1)}`;
 
   return (
     <div
@@ -176,7 +181,7 @@ export function RFactorCard({ stock }: RFactorCardProps) {
             description="Whether R-Factor is rising in recent candles"
           >
             <div style={{ color: "#555555", fontSize: "10px", textTransform: "uppercase" }}>
-              Trend
+              Trend 15m
             </div>
           </InsightTooltip>
           <div className="mt-1.5">
@@ -185,6 +190,9 @@ export function RFactorCard({ stock }: RFactorCardProps) {
               acceleration={stock.rfactor_trend_acceleration}
               points={stock.rfactor_trend_points}
             />
+          </div>
+          <div style={{ color: "#94A3B8", fontSize: "11px", fontWeight: 600, marginTop: "8px" }}>
+            {trendLabel}
           </div>
         </div>
 
@@ -214,6 +222,9 @@ export function RFactorCard({ stock }: RFactorCardProps) {
             }}
           >
             {formatInsightNumber(stock.opportunity_score, 1)}
+          </div>
+          <div style={{ color: "#FCD9AE", fontSize: "11px", fontWeight: 600, marginTop: "8px" }}>
+            {opportunityLabel}
           </div>
         </div>
       </div>
