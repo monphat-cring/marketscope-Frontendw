@@ -1,4 +1,5 @@
 import { RFactorStock } from "@/data/rfactorMockData";
+import { formatInsightNumber, InsightTooltip, StageBadge, TrendIndicator } from "./StockInsightWidgets";
 
 interface RFactorCardProps {
   stock: RFactorStock;
@@ -38,6 +39,7 @@ function getBidAskColor(ratio: number): string {
 export function RFactorCard({ stock }: RFactorCardProps) {
   const borderColor = getBorderColor(stock.rfactor);
   const isPositive = stock.change_pct >= 0;
+  const progressWidth = `${Math.max(0, Math.min(stock.rfactor <= 5 ? (stock.rfactor / 5) * 100 : stock.rfactor, 100))}%`;
 
   return (
     <div
@@ -75,6 +77,7 @@ export function RFactorCard({ stock }: RFactorCardProps) {
               F&amp;O
             </span>
           )}
+          <StageBadge stage={stock.setup_stage} />
           <span
             style={{
               backgroundColor: "#2a2a2a",
@@ -111,16 +114,21 @@ export function RFactorCard({ stock }: RFactorCardProps) {
 
       {/* Row 3 — R-Factor Label + Score */}
       <div className="flex items-center justify-between">
-        <span
-          style={{
-            color: "#555555",
-            fontSize: "10px",
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-          }}
+        <InsightTooltip
+          label="R-Factor"
+          description="Current strength / confirmation"
         >
-          R-FACTOR
-        </span>
+          <span
+            style={{
+              color: "#555555",
+              fontSize: "10px",
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+            }}
+          >
+            R-FACTOR
+          </span>
+        </InsightTooltip>
         <span
           style={{
             color: borderColor,
@@ -148,10 +156,66 @@ export function RFactorCard({ stock }: RFactorCardProps) {
             backgroundColor: borderColor,
             height: "100%",
             borderRadius: "9999px",
-            width: `${(stock.rfactor / 5) * 100}%`,
+            width: progressWidth,
             transition: "width 0.4s ease",
           }}
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <div
+          style={{
+            backgroundColor: "#151515",
+            border: "1px solid #242424",
+            borderRadius: "8px",
+            padding: "10px",
+          }}
+        >
+          <InsightTooltip
+            label="Trend"
+            description="Whether R-Factor is rising in recent candles"
+          >
+            <div style={{ color: "#555555", fontSize: "10px", textTransform: "uppercase" }}>
+              Trend
+            </div>
+          </InsightTooltip>
+          <div className="mt-1.5">
+            <TrendIndicator
+              trend={stock.rfactor_trend_15m}
+              acceleration={stock.rfactor_trend_acceleration}
+              points={stock.rfactor_trend_points}
+            />
+          </div>
+        </div>
+
+        <div
+          style={{
+            backgroundColor: "#151515",
+            border: "1px solid #242424",
+            borderRadius: "8px",
+            padding: "10px",
+          }}
+        >
+          <InsightTooltip
+            label="Opportunity"
+            description="Early-entry quality before overextension"
+          >
+            <div style={{ color: "#555555", fontSize: "10px", textTransform: "uppercase" }}>
+              Opportunity
+            </div>
+          </InsightTooltip>
+          <div
+            style={{
+              color: "#FDBA74",
+              fontSize: "18px",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              marginTop: "6px",
+            }}
+          >
+            {formatInsightNumber(stock.opportunity_score, 1)}
+          </div>
+        </div>
       </div>
 
       {/* Divider */}

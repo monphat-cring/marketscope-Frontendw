@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { mockData, Stock } from "@/data/mockData";
 import { getChangeTextColor, formatCurrency, getSignal } from "@/lib/market";
 import { apiUrl } from "@/lib/api";
+import { formatInsightNumber, InsightTooltip, StageBadge, TrendIndicator } from "./StockInsightWidgets";
 
 interface Filters {
   minMove: number;
@@ -12,6 +13,17 @@ interface Filters {
 }
 
 const allSectorNames = mockData.sectors.map((s) => s.name);
+
+function compareOptionalNumbers(a?: number, b?: number, ascending = false) {
+  const aValid = typeof a === "number" && !Number.isNaN(a);
+  const bValid = typeof b === "number" && !Number.isNaN(b);
+
+  if (!aValid && !bValid) return 0;
+  if (!aValid) return 1;
+  if (!bValid) return -1;
+
+  return ascending ? a - b : b - a;
+}
 
 export function ScannerTab() {
   const [filters, setFilters] = useState<Filters>({
@@ -47,7 +59,7 @@ export function ScannerTab() {
   }, [data.stocks]);
 
   const filtered = useMemo(() => {
-    let result = deduplicated.filter((s) => {
+    const result = deduplicated.filter((s) => {
       if (Math.abs(s.change_pct) < filters.minMove) return false;
       if (filters.direction === "GAINERS" && s.change_pct <= 0) return false;
       if (filters.direction === "LOSERS" && s.change_pct >= 0) return false;
@@ -58,6 +70,10 @@ export function ScannerTab() {
     });
 
     result.sort((a, b) => {
+      if (sortCol === "rfactor" || sortCol === "rfactor_trend_15m" || sortCol === "opportunity_score") {
+        return compareOptionalNumbers(a[sortCol], b[sortCol], sortAsc);
+      }
+
       const key = sortCol as keyof typeof a;
       const av = a[key] as number;
       const bv = b[key] as number;
@@ -195,6 +211,9 @@ export function ScannerTab() {
                 { key: "sector", label: "Sector", sortable: false },
                 { key: "ltp", label: "LTP", sortable: true },
                 { key: "change_pct", label: "% Change", sortable: true },
+                { key: "rfactor", label: "R-Factor", sortable: true },
+                { key: "rfactor_trend_15m", label: "Trend", sortable: true },
+                { key: "opportunity_score", label: "Opportunity", sortable: true },
                 { key: "volume_ratio", label: "Vol Ratio", sortable: true },
                 { key: "signal", label: "Signal", sortable: false },
               ].map((col) => (
@@ -205,7 +224,21 @@ export function ScannerTab() {
                   }`}
                   onClick={() => col.sortable && handleSort(col.key)}
                 >
-                  {col.label}
+                  {col.key === "rfactor" ? (
+                    <InsightTooltip label="R-Factor" description="Current strength / confirmation">
+                      <span>{col.label}</span>
+                    </InsightTooltip>
+                  ) : col.key === "rfactor_trend_15m" ? (
+                    <InsightTooltip label="Trend" description="Whether R-Factor is rising in recent candles">
+                      <span>{col.label}</span>
+                    </InsightTooltip>
+                  ) : col.key === "opportunity_score" ? (
+                    <InsightTooltip label="Opportunity" description="Early-entry quality before overextension">
+                      <span>{col.label}</span>
+                    </InsightTooltip>
+                  ) : (
+                    col.label
+                  )}
                   {sortCol === col.key && (sortAsc ? " ↑" : " ↓")}
                 </th>
               ))}
@@ -220,12 +253,35 @@ export function ScannerTab() {
                   className={i % 2 === 0 ? "bg-market-surface" : "bg-market-surface-alt"}
                 >
                   <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                  <td className="px-3 py-2 font-bold text-foreground">{stock.symbol}</td>
+                  <td className="px-3 py-2 font-bold text-foreground">
+                    <div className="flex flex-col gap-1">
+                      <span>{stock.symbol}</span>
+                      <StageBadge stage={stock.setup_stage} className="w-fit" />
+                    </div>
+                  </td>
                   <td className="px-3 py-2 text-muted-foreground">{stock.sector}</td>
                   <td className="px-3 py-2 text-foreground">{formatCurrency(stock.ltp)}</td>
                   <td className={`px-3 py-2 font-bold ${getChangeTextColor(stock.change_pct)}`}>
                     {stock.change_pct > 0 ? "+" : ""}
                     {stock.change_pct.toFixed(1)}%
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="font-semibold tabular-nums text-emerald-300">
+                      {formatInsightNumber(stock.rfactor, 1)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <TrendIndicator
+                      compact
+                      trend={stock.rfactor_trend_15m}
+                      acceleration={stock.rfactor_trend_acceleration}
+                      points={stock.rfactor_trend_points}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <span className="inline-flex items-center rounded-full border border-amber-200/15 bg-amber-300/10 px-2 py-0.5 text-[10px] font-semibold text-amber-300 tabular-nums">
+                      Opportunity {formatInsightNumber(stock.opportunity_score, 1)}
+                    </span>
                   </td>
                   <td className="px-3 py-2">
                     <span
@@ -273,7 +329,7 @@ export function ScannerTab() {
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">
+                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
                   No stocks match the current filters.
                 </td>
               </tr>

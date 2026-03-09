@@ -1,4 +1,15 @@
-export interface Stock {
+export type SetupStage = "Building" | "Triggering" | "Extended" | "Neutral";
+
+export interface StockInsightFields {
+  rfactor?: number;
+  rfactor_trend_15m?: number;
+  rfactor_trend_acceleration?: number;
+  rfactor_trend_points?: number[];
+  opportunity_score?: number;
+  setup_stage?: SetupStage;
+}
+
+export interface Stock extends StockInsightFields {
   symbol: string;
   ltp: number;
   change_pct: number;

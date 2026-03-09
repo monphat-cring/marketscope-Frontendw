@@ -4,36 +4,62 @@ import { RFactorCard } from "./RFactorCard";
 import { apiUrl } from "@/lib/api";
 
 type Direction = "ALL" | "GAINERS" | "LOSERS";
-type SortBy = "rfactor" | "change_pct" | "volume_ratio";
+type SortBy = "rfactor" | "opportunity" | "trend";
+
+function getSortValue(stock: RFactorData["stocks"][number], sortBy: SortBy) {
+  if (sortBy === "opportunity") return stock.opportunity_score ?? Number.NEGATIVE_INFINITY;
+  if (sortBy === "trend") return stock.rfactor_trend_15m ?? Number.NEGATIVE_INFINITY;
+  return stock.rfactor;
+}
 
 export function RFactorTab() {
+  const [sortBy, setSortBy] = useState<SortBy>("rfactor");
   const [data, setData] = useState<RFactorData>(rfactorMockData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-  fetch(apiUrl("/rfactor?limit=50"))
-    .then((r) => r.json())
-    .then((d) => {
-      console.log("LIVE DATA:", d.last_updated); // ← add karo
-      setData(d);
-      setLoading(false);
-      setError(false);   // ← yeh line hai?
-    })
-    .catch((err) => {
-      console.log("FETCH ERROR:", err); // ← add karo
-      setLoading(false);
-      setError(true);
-    });
-}, []);
+    const controller = new AbortController();
+    const endpoint =
+      sortBy === "opportunity"
+        ? "/rfactor?sort_by=opportunity"
+        : sortBy === "trend"
+          ? "/rfactor?sort_by=trend"
+          : "/rfactor?sort_by=rfactor";
+
+    setLoading(true);
+
+    fetch(apiUrl(endpoint), { signal: controller.signal })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.stocks) {
+          setData(d);
+          setError(false);
+        } else {
+          setData(rfactorMockData);
+          setError(true);
+        }
+        setLoading(false);
+      })
+      .catch((fetchError) => {
+        if (fetchError instanceof DOMException && fetchError.name === "AbortError") {
+          return;
+        }
+
+        setData(rfactorMockData);
+        setLoading(false);
+        setError(true);
+      });
+
+    return () => controller.abort();
+  }, [sortBy]);
 
   const [foOnly, setFoOnly] = useState<boolean>(false);
   const [minScore, setMinScore] = useState<number>(0);
   const [direction, setDirection] = useState<Direction>("ALL");
-  const [sortBy, setSortBy] = useState<SortBy>("rfactor");
 
   const filtered = useMemo(() => {
-    return data.stocks
+    return [...data.stocks]
       .filter((s) => !foOnly || s.fo)
       .filter((s) => s.rfactor >= minScore)
       .filter(
@@ -43,10 +69,7 @@ export function RFactorTab() {
           (direction === "LOSERS" && s.change_pct < 0)
       )
       .sort((a, b) => {
-        if (sortBy === "rfactor") return b.rfactor - a.rfactor;
-        if (sortBy === "change_pct")
-          return Math.abs(b.change_pct) - Math.abs(a.change_pct);
-        return b.volume_ratio - a.volume_ratio;
+        return getSortValue(b, sortBy) - getSortValue(a, sortBy);
       });
   }, [data, foOnly, minScore, direction, sortBy]);
 
@@ -164,8 +187,8 @@ export function RFactorTab() {
             }}
           >
             <option value="rfactor">R-Factor ↓</option>
-            <option value="change_pct">% Change ↓</option>
-            <option value="volume_ratio">Volume ↓</option>
+            <option value="opportunity">Opportunity ↓</option>
+            <option value="trend">Trend ↓</option>
           </select>
 
           {/* Updated time — pushed to the right */}
